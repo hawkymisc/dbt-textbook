@@ -1,0 +1,11 @@
+customer_id,first_name,last_name,email,created_at,updated_at
+1,太郎,田中,tanaka.taro@example.com,2024-01-15 10:30:00,2024-06-20 15:45:00
+2,花子,鈴木,suzuki.hanako@example.com,2024-01-20 14:22:00,2024-07-01 09:00:00
+3,一郎,佐藤,sato.ichiro@example.com,2024-02-01 09:15:00,2024-05-15 12:30:00
+4,美咲,高橋,takahashi.misaki@example.com,2024-02-10 16:45:00,2024-08-01 10:20:00
+5,健太,渡辺,watanabe.kenta@example.com,2024-03-05 11:00:00,2024-06-25 14:10:00
+6,由美,伊藤,ito.yumi@example.com,2024-03-15 13:30:00,2024-07-20 16:00:00
+7,大輔,山本,yamamoto.daisuke@example.com,2024-04-01 10:00:00,2024-08-10 11:45:00
+8,真理,中村,nakamura.mari@example.com,2024-04-20 15:20:00,2024-07-05 09:30:00
+9,翔太,小林,kobayashi.shota@example.com,2024-05-01 09:45:00,2024-08-15 13:00:00
+10,彩,加藤,kato.aya@example.com,2024-05-10 14:10:00,2024-07-30 10:15:00

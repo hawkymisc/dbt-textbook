@@ -1,0 +1,48 @@
+name: 'sample_ec_project'
+version: '1.0.0'
+config-version: 2
+
+# プロファイル名（~/.dbt/profiles.ymlで設定）
+profile: 'sample_ec_project'
+
+# モデルの設定
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+# 生成物の出力先
+target-path: "target"
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+# モデルのマテリアライゼーション設定
+models:
+  sample_ec_project:
+    # Staging層: 生データの準備
+    staging:
+      +materialized: view
+      +schema: staging
+
+    # Intermediate層: 変換ロジック
+    intermediate:
+      +materialized: ephemeral
+      +schema: intermediate
+
+    # Marts層: ビジネス向けモデル
+    marts:
+      +materialized: table
+      +schema: marts
+
+# Seedsの設定
+seeds:
+  sample_ec_project:
+    +schema: raw
+
+# テストの設定
+tests:
+  sample_ec_project:
+    +severity: error

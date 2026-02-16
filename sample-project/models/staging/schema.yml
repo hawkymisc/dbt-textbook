@@ -1,0 +1,117 @@
+# Staging層のモデル定義とテスト
+
+version: 2
+
+models:
+  - name: stg_customers
+    description: "顧客データのステージングモデル。生データから基本的な変換を行います。"
+    columns:
+      - name: customer_id
+        description: "顧客ID"
+        tests:
+          - unique
+          - not_null
+      - name: first_name
+        description: "名前"
+      - name: last_name
+        description: "氏名"
+      - name: full_name
+        description: "フルネーム"
+      - name: email
+        description: "メールアドレス"
+      - name: created_at
+        description: "顧客登録日時"
+      - name: updated_at
+        description: "最終更新日時"
+
+  - name: stg_products
+    description: "商品データのステージングモデル。利益率の計算を含みます。"
+    columns:
+      - name: product_id
+        description: "商品ID"
+        tests:
+          - unique
+          - not_null
+      - name: product_name
+        description: "商品名"
+      - name: category
+        description: "カテゴリ"
+      - name: price
+        description: "販売価格"
+        tests:
+          - not_null
+      - name: cost
+        description: "原価"
+      - name: profit_margin
+        description: "利益率"
+      - name: profit_amount
+        description: "利益額"
+      - name: created_at
+        description: "商品登録日時"
+      - name: updated_at
+        description: "最終更新日時"
+
+  - name: stg_orders
+    description: "注文データのステージングモデル。日付関連の派生カラムを追加します。"
+    columns:
+      - name: order_id
+        description: "注文ID"
+        tests:
+          - unique
+          - not_null
+      - name: customer_id
+        description: "顧客ID"
+        tests:
+          - not_null
+      - name: order_status
+        description: "注文ステータス"
+        tests:
+          - accepted_values:
+              values: ['pending', 'shipped', 'completed', 'cancelled', 'returned']
+      - name: payment_method
+        description: "支払い方法"
+      - name: shipping_address
+        description: "配送先住所"
+      - name: total_amount
+        description: "注文合計金額"
+      - name: order_date
+        description: "注文日"
+      - name: order_month
+        description: "注文月"
+      - name: order_day_of_week
+        description: "注文曜日"
+      - name: order_hour
+        description: "注文時間帯"
+      - name: created_at
+        description: "注文日時"
+      - name: updated_at
+        description: "最終更新日時"
+
+  - name: stg_order_items
+    description: "注文明細データのステージングモデル。小計を計算します。"
+    columns:
+      - name: order_item_id
+        description: "注文明細ID"
+        tests:
+          - unique
+          - not_null
+      - name: order_id
+        description: "注文ID"
+        tests:
+          - not_null
+      - name: product_id
+        description: "商品ID"
+        tests:
+          - not_null
+      - name: quantity
+        description: "数量"
+        tests:
+          - not_null
+      - name: unit_price
+        description: "販売時点の単価"
+        tests:
+          - not_null
+      - name: line_total
+        description: "小計"
+      - name: created_at
+        description: "登録日時"

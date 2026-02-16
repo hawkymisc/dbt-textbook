@@ -1,0 +1,72 @@
+# Marts層のモデル定義とテスト
+
+version: 2
+
+models:
+  - name: fct_orders
+    description: "注文ファクトテーブル。完了・発送済みの注文のみを含む。"
+    columns:
+      - name: order_id
+        description: "注文ID（主キー）"
+        tests:
+          - unique
+          - not_null
+      - name: customer_id
+        description: "顧客ID"
+        tests:
+          - not_null
+      - name: customer_name
+        description: "顧客名"
+      - name: order_status
+        description: "注文ステータス"
+      - name: order_status_ja
+        description: "注文ステータス（日本語）"
+      - name: total_amount
+        description: "注文合計金額"
+      - name: order_date
+        description: "注文日"
+      - name: calculated_total
+        description: "計算された合計金額（注文明細から算出）"
+      - name: gross_profit_margin
+        description: "粗利率"
+
+  - name: dim_customers
+    description: "顧客ディメンションテーブル。顧客ごとの購入行動を集計。"
+    columns:
+      - name: customer_id
+        description: "顧客ID（主キー）"
+        tests:
+          - unique
+          - not_null
+      - name: full_name
+        description: "顧客氏名"
+      - name: email
+        description: "メールアドレス"
+      - name: lifetime_value
+        description: "顧客生涯価値（LTV）"
+      - name: customer_segment
+        description: "顧客セグメント（VIP/Regular/New/No Purchase）"
+        tests:
+          - accepted_values:
+              values: ['VIP', 'Regular', 'New', 'No Purchase']
+
+  - name: fct_daily_sales
+    description: "日次売上サマリーテーブル"
+    columns:
+      - name: order_date
+        description: "注文日（主キー）"
+        tests:
+          - unique
+          - not_null
+      - name: total_orders
+        description: "注文数"
+        tests:
+          - not_null
+      - name: daily_revenue
+        description: "日次売上"
+        tests:
+          - not_null
+      - name: daily_profit
+        description: "日次利益"
+      - name: profit_margin
+        description: "利益率"

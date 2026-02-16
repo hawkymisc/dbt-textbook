@@ -1,0 +1,79 @@
+# Intermediate層のモデル定義
+
+version: 2
+
+models:
+  - name: int_order_items_with_product
+    description: "注文明細に商品情報を結合した中間モデル。売上原価と粗利益を計算します。"
+    columns:
+      - name: order_item_id
+        description: "注文明細ID"
+      - name: order_id
+        description: "注文ID"
+      - name: product_id
+        description: "商品ID"
+      - name: product_name
+        description: "商品名"
+      - name: category
+        description: "カテゴリ"
+      - name: quantity
+        description: "数量"
+      - name: unit_price
+        description: "単価"
+      - name: unit_cost
+        description: "単価原価"
+      - name: line_total
+        description: "小計"
+      - name: cost_of_goods_sold
+        description: "売上原価"
+      - name: gross_profit
+        description: "粗利益"
+      - name: created_at
+        description: "登録日時"
+
+  - name: int_orders_with_details
+    description: "注文に顧客情報と注文明細の集計を結合した中間モデル。"
+    columns:
+      - name: order_id
+        description: "注文ID"
+        tests:
+          - unique
+          - not_null
+      - name: customer_id
+        description: "顧客ID"
+      - name: customer_name
+        description: "顧客名"
+      - name: customer_email
+        description: "顧客メールアドレス"
+      - name: order_status
+        description: "注文ステータス"
+      - name: payment_method
+        description: "支払い方法"
+      - name: shipping_address
+        description: "配送先住所"
+      - name: total_amount
+        description: "注文合計金額"
+      - name: order_date
+        description: "注文日"
+      - name: order_month
+        description: "注文月"
+      - name: order_day_of_week
+        description: "注文曜日"
+      - name: order_hour
+        description: "注文時間帯"
+      - name: created_at
+        description: "注文日時"
+      - name: updated_at
+        description: "最終更新日時"
+      - name: item_count
+        description: "アイテム数"
+      - name: total_quantity
+        description: "合計数量"
+      - name: calculated_total
+        description: "計算された合計金額"
+      - name: total_cogs
+        description: "合計売上原価"
+      - name: total_gross_profit
+        description: "合計粗利益"
+      - name: gross_profit_margin
+        description: "粗利率"

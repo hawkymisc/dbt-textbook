@@ -1,0 +1,59 @@
+# dbtプロファイル設定ファイル
+# このファイルを ~/.dbt/profiles.yml としてコピーして使用します
+# または環境変数 DBT_PROFILES_DIR で指定したディレクトリに配置します
+
+# =============================================================================
+# BigQuery用設定
+# =============================================================================
+sample_ec_project_bigquery:
+  target: dev
+  outputs:
+    dev:
+      type: bigquery
+      method: oauth  # または service_account
+      project: your-gcp-project-id
+      dataset: dbt_dev
+      threads: 4
+      timeout_seconds: 300
+      location: asia-northeast1  # 東京リージョン
+
+    # サービスアカウントを使用する場合
+    # prod:
+    #   type: bigquery
+    #   method: service_account
+    #   project: your-gcp-project-id
+    #   dataset: dbt_prod
+    #   keyfile: /path/to/service-account.json
+    #   threads: 4
+    #   timeout_seconds: 300
+    #   location: asia-northeast1
+
+# =============================================================================
+# DuckDB用設定（ローカル学習用）
+# =============================================================================
+sample_ec_project_duckdb:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: ./dev.duckdb
+      threads: 4
+
+    # メモリ上で動作させる場合
+    # dev:
+    #   type: duckdb
+    #   path: ":memory:"
+    #   threads: 1
+
+# =============================================================================
+# 使用方法
+# =============================================================================
+# 1. BigQueryを使用する場合:
+#    export DBT_TARGET=bigquery
+#    dbt run --target dev --profiles-dir .
+#
+# 2. DuckDBを使用する場合:
+#    export DBT_TARGET=duckdb
+#    dbt run --target dev --profiles-dir .
+#
+# 注意: 実際のprofiles.ymlには認証情報を含むため、Gitにコミットしないでください

@@ -1,0 +1,117 @@
+# ソース定義
+# ここでは生データがどこにあるかを定義します
+
+version: 2
+
+sources:
+  - name: raw
+    description: "ECサイトの生データ（CSVファイルからインポート）"
+    schema: raw
+    tables:
+      - name: customers
+        description: "顧客マスタテーブル"
+        columns:
+          - name: customer_id
+            description: "顧客ID（主キー）"
+            tests:
+              - unique
+              - not_null
+          - name: first_name
+            description: "名前"
+          - name: last_name
+            description: "氏名"
+          - name: email
+            description: "メールアドレス"
+            tests:
+              - unique
+          - name: created_at
+            description: "顧客登録日時"
+          - name: updated_at
+            description: "最終更新日時"
+
+      - name: products
+        description: "商品マスタテーブル"
+        columns:
+          - name: product_id
+            description: "商品ID（主キー）"
+            tests:
+              - unique
+              - not_null
+          - name: product_name
+            description: "商品名"
+          - name: category
+            description: "カテゴリ"
+          - name: price
+            description: "販売価格"
+            tests:
+              - not_null
+          - name: cost
+            description: "原価"
+          - name: created_at
+            description: "商品登録日時"
+          - name: updated_at
+            description: "最終更新日時"
+
+      - name: orders
+        description: "注文ヘッダテーブル"
+        columns:
+          - name: order_id
+            description: "注文ID（主キー）"
+            tests:
+              - unique
+              - not_null
+          - name: customer_id
+            description: "顧客ID（外部キー）"
+            tests:
+              - not_null
+              - relationships:
+                  to: source('raw', 'customers')
+                  field: customer_id
+          - name: order_status
+            description: "注文ステータス（pending, shipped, completed, cancelled, returned）"
+            tests:
+              - accepted_values:
+                  values: ['pending', 'shipped', 'completed', 'cancelled', 'returned']
+          - name: payment_method
+            description: "支払い方法"
+          - name: shipping_address
+            description: "配送先住所"
+          - name: total_amount
+            description: "注文合計金額"
+          - name: created_at
+            description: "注文日時"
+          - name: updated_at
+            description: "最終更新日時"
+
+      - name: order_items
+        description: "注文明細テーブル"
+        columns:
+          - name: order_item_id
+            description: "注文明細ID（主キー）"
+            tests:
+              - unique
+              - not_null
+          - name: order_id
+            description: "注文ID（外部キー）"
+            tests:
+              - not_null
+              - relationships:
+                  to: source('raw', 'orders')
+                  field: order_id
+          - name: product_id
+            description: "商品ID（外部キー）"
+            tests:
+              - not_null
+              - relationships:
+                  to: source('raw', 'products')
+                  field: product_id
+          - name: quantity
+            description: "数量"
+            tests:
+              - not_null
+          - name: unit_price
+            description: "販売時点の単価"
+            tests:
+              - not_null
+          - name: created_at
+            description: "登録日時"
