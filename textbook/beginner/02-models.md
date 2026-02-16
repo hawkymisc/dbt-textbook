@@ -11,7 +11,7 @@ title: "2. モデルの作成"
 モデルは、データウェアハウスで実行されるSQLクエリの定義です。各モデルは1つのテーブルまたはビューに対応します。
 
 ```
-モデル（SQLファイル） → 実行 → テーブル/ビュー
+モデル（SQLファイル） → dbt run → テーブル/ビュー
 ```
 
 ### 最もシンプルなモデル
@@ -43,12 +43,11 @@ SELECT 1 as id, 'Hello' as message
 
 ### CTE（Common Table Expression）パターン
 
-dbtではCTEパターンを使用することが推奨されています：
+**CTE**（共通テーブル式）は、WITH句で定義する一時的な結果セットです。dbtではCTEパターンを使用することが推奨されています：
 
 ```sql
 -- models/staging/stg_orders.sql
 
--- コメントで各CTEの目的を説明
 with source as (
     -- ソースからデータを取得
     select * from {{ source('raw', 'orders') }}
@@ -60,11 +59,8 @@ renamed as (
         order_id,
         customer_id,
         order_status,
-        payment_method,
-        shipping_address,
         total_amount,
-        created_at,
-        updated_at
+        created_at
     from source
 ),
 
@@ -72,7 +68,6 @@ final as (
     -- 最終的な変換
     select
         *,
-        -- 注文日を抽出
         date(created_at) as order_date
     from renamed
 )
@@ -95,7 +90,6 @@ select * from final
 -- models/marts/fct_orders.sql
 
 with orders as (
-    -- 別のモデルを参照
     select * from {{ ref('stg_orders') }}
 ),
 
@@ -106,7 +100,6 @@ customers as (
 final as (
     select
         o.order_id,
-        o.customer_id,
         c.full_name as customer_name,
         o.total_amount
     from orders o
@@ -114,16 +107,6 @@ final as (
 )
 
 select * from final
-```
-
-### ref()の動作
-
-`ref('stg_orders')` は、データウェアハウス上の実際のテーブル名に変換されます：
-
-```
-{{ ref('stg_orders') }}
-↓
-`project_id.dataset_name.stg_orders`  -- BigQuery
 ```
 
 ### 依存関係の自動解決
@@ -162,152 +145,52 @@ select * from {{ source('raw', 'customers') }}
 |-----|----------|-------|
 | 参照先 | 生データ（外部システム） | dbtモデル |
 | 定義場所 | sources.yml | 自動検出 |
-| テスト | ソーステスト | モデルテスト |
 | リネージ | 入力元として表示 | モデル間の依存関係 |
 
-## 2-6. モデルの設定
+## 2-6. 選択実行（Selection）
 
-### ファイル内での設定
+特定のモデルだけを実行するには、`--select` オプションを使用します。
 
-```sql
--- models/marts/fct_orders.sql
-{{ config(
-    materialized='table',
-    schema='analytics',
-    cluster_by=['order_date']
-) }}
+### 依存グラフと`+`記法
 
-with orders as (
-    select * from {{ ref('stg_orders') }}
-)
-
-select * from orders
-```
-
-### 主要な設定オプション
-
-| オプション | 説明 | 例 |
-|-----------|------|-----|
-| `materialized` | マテリアライゼーション | `'table'`, `'view'`, `'incremental'` |
-| `schema` | スキーマ名のプレフィックス | `'analytics'` |
-| `cluster_by` | クラスタリングキー（BigQuery） | `['order_date']` |
-| `tags` | タグ（選択実行用） | `['nightly']` |
-| `persist_docs` | ドキュメントを永続化 | `{'columns': true}` |
-
-### YAMLでの設定
-
-```yaml
-# models/marts/schema.yml
-version: 2
-
-models:
-  - name: fct_orders
-    config:
-      materialized: table
-      cluster_by: ['order_date']
-      tags: ['critical']
-```
-
-## 2-7. 選択実行（Selection）
-
-特定のモデルだけを実行するには、`--select` オプションを使用します：
-
-```bash
-# 特定のモデルのみ
-dbt run --select fct_orders
-
-# 複数のモデル
-dbt run --select fct_orders dim_customers
-
-# ディレクトリ単位
-dbt run --select staging.*
-
-# タグで選択
-dbt run --select tag:nightly
-
-# 正規表現
-dbt run --select "stg_*"
-```
-
-### 依存関係を含む選択
-
-```bash
-# 指定モデルとその依存元（上游）
-dbt run --select +fct_orders
-
-# 指定モデルとその被依存先（下游）
-dbt run --select stg_orders+
-
-# 両方向
-dbt run --select +fct_orders+
-
-# 範囲指定
-dbt run --select stg_orders+int_orders
-```
-
-### グラフの可視化
+まず、依存グラフを理解しましょう：
 
 ```
 stg_customers ──┐
                 ├──→ int_orders ──→ fct_orders
 stg_orders ─────┘        │
                          └──→ dim_customers
-
-# dbt run --select +fct_orders
-# → stg_customers, stg_orders, int_orders, fct_orders が実行される
-
-# dbt run --select stg_orders+
-# → stg_orders, int_orders, fct_orders, dim_customers が実行される
 ```
 
-## 2-8. モデルのドキュメント
+`+` 記号の意味：
+- `+モデル名` = 上流（依存元）を含む
+- `モデル名+` = 下流（被依存先）を含む
 
-### インラインドキュメント
+### コマンド例
 
-```sql
--- models/staging/stg_orders.sql
+```bash
+# 特定のモデルのみ
+dbt run --select fct_orders
 
-with source as (
-    select * from {{ source('raw', 'orders') }}
-),
+# 上流を含む（fct_ordersと、それが依存する全モデル）
+dbt run --select +fct_orders
+# → stg_customers, stg_orders, int_orders, fct_orders
 
-final as (
-    select
-        order_id,
-        customer_id,
-        -- 注文の合計金額（税込み）
-        total_amount,
-        -- 注文日時（JST）
-        created_at
-    from source
-)
+# 下流を含む（stg_ordersと、それに依存する全モデル）
+dbt run --select stg_orders+
+# → stg_orders, int_orders, fct_orders, dim_customers
 
-select * from final
+# 両方向
+dbt run --select +fct_orders+
+
+# ディレクトリ単位
+dbt run --select staging.*
+
+# タグで選択
+dbt run --select tag:nightly
 ```
 
-### YAMLでのドキュメント
-
-```yaml
-# models/staging/schema.yml
-version: 2
-
-models:
-  - name: stg_orders
-    description: "注文データのステージングモデル。生データから基本的な変換を行う。"
-    columns:
-      - name: order_id
-        description: "注文ID（主キー）"
-      - name: customer_id
-        description: "顧客ID"
-      - name: total_amount
-        description: "注文の合計金額（税込み、円）"
-        meta:
-          metric_type: currency
-      - name: created_at
-        description: "注文日時（日本標準時）"
-```
-
-## 2-9. モデル作成のベストプラクティス
+## 2-7. モデル作成のベストプラクティス
 
 ### DO（推奨）
 
@@ -315,21 +198,15 @@ models:
 -- ✅ CTEを使用
 with source as (
     select * from {{ source('raw', 'orders') }}
-),
-renamed as (
-    select
-        order_id,
-        customer_id
-    from source
 )
-select * from renamed
+select * from source
 
 -- ✅ 明示的なカラム指定
 select
     order_id,
     customer_id,
     total_amount
-from {{ source('raw', 'orders') }}
+from {{ ref('stg_orders') }}
 
 -- ✅ コメントで意図を説明
 -- 顧客IDで集計し、各顧客の注文数を計算
@@ -339,58 +216,92 @@ from {{ source('raw', 'orders') }}
 
 ```sql
 -- ❌ SELECT * の多用（最終層では）
-select * from {{ source('raw', 'orders') }}
+-- 理由：ソースにカラムが追加されると、意図しないカラムが
+--       出力に含まれてしまい、下流のモデルやBIツールに影響する
+select * from {{ ref('stg_orders') }}
 
--- ❌ ネストしたサブクエリ
+-- ❌ ネストしたサブクエリ（読みにくい）
 select * from (
     select * from (
         select * from orders
     )
 )
 
--- ❌ マジックナンバー
+-- ❌ マジックナンバー（意図が不明）
 where amount > 1000000  -- なぜ100万？
 
 -- ❌ コメントなしの複雑なロジック
 case when a > b then c else d end
 ```
 
-## 2-10. 実践：サンプルプロジェクトのモデル
+:::message
+**なぜ `SELECT *` を避けるか？**
 
-サンプルプロジェクトのモデル構成を確認しましょう：
+Staging層では `SELECT *` を使っても良いですが、Marts層では明示的なカラム指定を推奨します。理由：
+1. ソースにカラムが追加された場合、意図しないカラムが出力に含まれる
+2. カラム名の変更時にエラーに気づきにくい
+3. ドキュメントとしての役割が薄れる
+:::
 
+## 2-8. 実践：モデルを作成して実行
+
+### 手順
+
+1. **モデルファイルを作成**
+
+```sql
+-- models/staging/stg_orders.sql
+with source as (
+    select * from {{ source('raw', 'orders') }}
+)
+
+select
+    order_id,
+    customer_id,
+    total_amount,
+    created_at
+from source
 ```
-models/
-├── staging/
-│   ├── sources.yml           # ソース定義
-│   ├── stg_customers.sql     # 顧客データの変換
-│   ├── stg_products.sql      # 商品データの変換
-│   ├── stg_orders.sql        # 注文データの変換
-│   └── stg_order_items.sql   # 注文明細の変換
-│
-├── intermediate/
-│   ├── int_order_items_with_product.sql  # 明細に商品情報を結合
-│   └── int_orders_with_details.sql       # 注文に集計情報を結合
-│
-└── marts/
-    ├── schema.yml            # テスト定義
-    ├── fct_orders.sql        # 注文ファクトテーブル
-    ├── fct_daily_sales.sql   # 日次売上サマリー
-    └── dim_customers.sql     # 顧客ディメンション
-```
 
-### 実行と確認
+2. **dbt runを実行**
 
 ```bash
-# 全モデルを実行
-dbt run
+dbt run --select stg_orders
+```
 
-# 特定のモデルとその依存元を実行
-dbt run --select +fct_orders
+3. **実行結果を確認**
 
-# ドキュメントを生成
-dbt docs generate
-dbt docs serve
+```
+Running with dbt=1.8.0
+Found 1 model, 0 tests
+
+14:30:00  1 of 1 START view model dbt_dev.stg_orders ................ [RUN]
+14:30:01  1 of 1 OK created view model dbt_dev.stg_orders ........... [OK in 1.23s]
+
+Completed successfully
+
+Done. PASS=1 WARN=0 ERROR=0 SKIP=0 TOTAL=1
+```
+
+4. **コンパイル結果を確認**
+
+```bash
+# コンパイルされたSQLを確認
+cat target/compiled/sample_ec_project/models/staging/stg_orders.sql
+```
+
+```sql
+-- コンパイル結果（refが実際のテーブル名に変換される）
+with source as (
+    select * from `my-project.raw_data.orders`
+)
+
+select
+    order_id,
+    customer_id,
+    total_amount,
+    created_at
+from source
 ```
 
 ## まとめ
@@ -398,7 +309,7 @@ dbt docs serve
 - モデルはSQLファイルで定義、1ファイル1テーブル/ビュー
 - CTEパターンで可読性を高める
 - `ref()` でモデルを、`source()` でソースを参照
-- `--select` オプションで特定のモデルを実行
-- ドキュメントはYAMLで定義
+- `--select` と `+` で特定のモデルと依存関係を実行
+- 最終層では `SELECT *` を避け、明示的にカラムを指定
 
 次の章では、マテリアライゼーションについて詳しく学びます。
