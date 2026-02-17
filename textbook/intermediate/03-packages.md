@@ -94,8 +94,8 @@ packages:
     "DATE '2024-12-31'"
 ) }}
 
--- 安全な除算
-{{ dbt_utils.safe_divide('numerator', 'denominator') }}
+-- 安全な除算（ゼロ除算対策）
+{{ dbt_utils.safe_divide(numerator, denominator) }}
 
 -- スターマークアップ
 {{ dbt_utils.star(from=ref('stg_orders'), except=['created_at', 'updated_at']) }}
@@ -246,11 +246,14 @@ packages:
 ## 3-6. パッケージの更新
 
 ```bash
-# 更新の確認
-dbt list --output json | jq '.[] | select(.resource_type == "package")'
+# 現在のバージョン確認（packages.ymlを確認）
+cat packages.yml
 
 # 更新の実行
 dbt deps --upgrade
+
+# 差分の確認（lockファイルと比較）
+git diff package-lock.yml
 ```
 
 ## 3-7. サンプルプロジェクトへの適用
@@ -286,8 +289,8 @@ select
     order_status,
     total_amount,
     order_date,
-    -- 利益率（ゼロ除算対策）
-    {{ dbt_utils.safe_divide('total_profit', 'calculated_total') }} as profit_margin
+    -- 利益率（ゼロ除算対策 - カラム名をクォートしない）
+    {{ dbt_utils.safe_divide(total_profit, calculated_total) }} as profit_margin
 from orders
 where order_status in ('completed', 'shipped')
 ```
@@ -300,14 +303,14 @@ models:
       - name: total_amount
         tests:
           - dbt_utils.expression_is_true:
-              expression: ">= 0"
+              expression: "total_amount >= 0"
               config:
                 severity: warn
 
       - name: profit_margin
         tests:
           - dbt_utils.expression_is_true:
-              expression: "BETWEEN 0 AND 1"
+              expression: "profit_margin >= 0 AND profit_margin <= 1"
 ```
 
 ## 3-8. その他の便利なパッケージ

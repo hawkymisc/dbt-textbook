@@ -136,7 +136,16 @@ FROM {{ ref('stg_orders') }}
 ```sql
 -- macros/format_date.sql
 {% macro format_date(date_column) %}
-    DATE_FORMAT({{ date_column }}, '%Y-%m-%d')
+    {% if adapter.type == 'bigquery' %}
+        FORMAT_DATE('%Y-%m-%d', {{ date_column }})
+    {% elif adapter.type == 'postgres' %}
+        TO_CHAR({{ date_column }}, 'YYYY-MM-DD')
+    {% elif adapter.type == 'duckdb' %}
+        strftime({{ date_column }}, '%Y-%m-%d')
+    {% else %}
+        -- デフォルト（Snowflakeなど多くのDBで動作）
+        CAST({{ date_column }} AS DATE)
+    {% endif %}
 {% endmacro %}
 ```
 
@@ -147,6 +156,10 @@ SELECT
     {{ format_date('order_date') }} as formatted_date
 FROM {{ ref('stg_orders') }}
 ```
+
+:::message
+`DATE_FORMAT` は MySQL の構文です。BigQuery, Snowflake, DuckDB では動作しないため、`adapter.type` で分岐するか `dbt_utils` のマクロを使用してください。
+:::
 
 ### 引数付きマクロ
 
@@ -241,9 +254,11 @@ FROM orders o
 
 ```sql
 -- 現在のモデルの参照
-{{ this }}  -- プロジェクト名.スキーマ.モデル名
+{{ this }}  -- プロジェクト名.スキーマ.モデル名（完全なテーブル参照）
+{{ this.database }}  -- データベース名
 {{ this.schema }}  -- スキーマ名
-{{ this.table }}  -- テーブル名
+{{ this.name }}  -- モデル名（テーブル名）
+{{ this.identifier }}  -- 識別子（nameと同じ）
 ```
 
 ### config()
@@ -356,14 +371,15 @@ dbt debug
 
 ```sql
 -- macros/generate_surrogate_key.sql
+-- 推奨: dbt_utilsのマクロをラップ（データベース間の移植性を確保）
 {% macro generate_surrogate_key(columns) %}
-    {%- set column_list = [] -%}
-    {%- for column in columns -%}
-        {%- set _ = column_list.append("COALESCE(CAST(" ~ column ~ " AS VARCHAR), '')") -%}
-    {%- endfor -%}
-    MD5({{ column_list | join(" || '-' || ") }})
+    {{ dbt_utils.generate_surrogate_key(columns) }}
 {% endmacro %}
 ```
+
+:::message
+自作サロゲートキーマクロで `MD5`, `||`, `VARCHAR` キャストを使うと BigQuery で動作しません。`dbt_utils.generate_surrogate_key` は各データベースに対応した実装が提供されているため、移植性を確保できます。
+:::
 
 ```sql
 -- macros/date_spine.sql

@@ -38,10 +38,22 @@ dbt Snapshotsは、**SCD Type 2**（Slowly Changing Dimension Type 2）を実装
 
 ### Snapshotsの出力
 
-| customer_id | name | email | dbt_valid_from | dbt_valid_to |
-|------------|------|-------|----------------|--------------|
-| 1 | 田中太郎 | old@email.com | 2024-01-01 | 2024-06-15 |
-| 1 | 田中太郎 | new@email.com | 2024-06-15 | NULL |
+Snapshotsを実行すると、以下のカラムが自動的に追加されます：
+
+| カラム名 | 説明 |
+|---------|------|
+| `dbt_scd_id` | レコードの一意識別子（ハッシュ値） |
+| `dbt_valid_from` | レコードの有効開始日時 |
+| `dbt_valid_to` | レコードの有効終了日時（現在のレコードはNULL） |
+| `dbt_updated_at` | レコードが更新された日時 |
+| `dbt_is_deleted` | 削除フラグ（invalidate_hard_deletes=True時） |
+
+**出力例**:
+
+| customer_id | name | email | dbt_valid_from | dbt_valid_to | dbt_scd_id |
+|------------|------|-------|----------------|--------------|------------|
+| 1 | 田中太郎 | old@email.com | 2024-01-01 | 2024-06-15 | abc123... |
+| 1 | 田中太郎 | new@email.com | 2024-06-15 | NULL | def456... |
 
 現在のレコードは `dbt_valid_to` が `NULL` です。
 
@@ -161,6 +173,8 @@ SELECT
     customer_id,
     full_name,
     email,
+    dbt_valid_from,
+    dbt_valid_to,
     'current' as record_type
 FROM current_customers
 
@@ -171,6 +185,8 @@ SELECT
     customer_id,
     full_name,
     email,
+    dbt_valid_from,
+    dbt_valid_to,
     'historical' as record_type
 FROM historical_customers
 WHERE dbt_valid_to IS NOT NULL

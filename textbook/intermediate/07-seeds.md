@@ -120,11 +120,11 @@ category_id,category_name,category_name_ja,sort_order,is_active
 ```csv
 -- seeds/order_statuses.csv
 status_code,status_name,status_name_ja,is_final
-pending,保留中,いいえ
-shipped,発送済み,いいえ
-completed,完了,はい
-cancelled,キャンセル,はい
-returned,返品,はい
+pending,保留中,保留中,false
+shipped,発送済み,発送済み,false
+completed,完了,完了,true
+cancelled,キャンセル,キャンセル,true
+returned,返品,返品,true
 ```
 
 ### 国・地域マスタ
@@ -228,8 +228,8 @@ dbt seed --exclude test_data
 ```csv
 -- seeds/payment_methods.csv
 payment_method_code,payment_method_name,payment_method_name_ja
-credit_card,クレジットカード,credit_card
-bank_transfer,銀行振込,bank_transfer
+credit_card,Credit Card,クレジットカード
+bank_transfer,Bank Transfer,銀行振込
 ```
 
 ```sql
@@ -247,27 +247,15 @@ LEFT JOIN {{ ref('payment_methods') }} pm
 
 ### DO（推奨）
 
-```csv
-// ✅ 一貫したカラム名（snake_case）
-category_id,category_name,sort_order
-
-// ✅ ヘッダー行を含める
-
-// ✅ UTF-8エンコーディング
-```
+- ✅ 一貫したカラム名（snake_case）
+- ✅ ヘッダー行を含める
+- ✅ UTF-8エンコーディング
 
 ### DON'T（非推奨）
 
-```csv
-// ❌ 大量のデータ（10,000行以上）
-// → 代わりにソースを使用
-
-// ❌ 頻繁に変わるデータ
-// → 代わりに外部システムから
-
-// ❌ 日本語カラム名
-カテゴリID,カテゴリ名
-```
+- ❌ 大量のデータ（10,000行以上）→ 代わりにソースを使用
+- ❌ 頻繁に変わるデータ → 代わりに外部システムから
+- ❌ 日本語カラム名 → 英語のカラム名を使用
 
 ### チェックリスト
 

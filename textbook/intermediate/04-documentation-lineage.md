@@ -159,6 +159,21 @@ sources:
             description: "注文ステータス"
 ```
 
+### Freshness（鮮度）チェック
+
+```bash
+# 鮮度チェックを実行
+dbt source freshness
+```
+
+freshness設定は `dbt source freshness` コマンドを実行した時のみチェックされます。CIパイプラインに組み込むことをお勧めします：
+
+```yaml
+# CIでの鮮度チェック
+- name: Check source freshness
+  run: dbt source freshness
+```
+
 ## 4-5. メタデータ
 
 ### metaフィールド
@@ -223,7 +238,7 @@ models:
 プロジェクトの概要ページをカスタマイズできます：
 
 ```markdown
-<!-- models/overview.md -->
+<!-- docs/overview.md（dbt_project.ymlのdocs-pathsに配置）-->
 
 {% docs __overview__ %}
 
@@ -254,6 +269,10 @@ Raw Data → Staging → Intermediate → Marts
 
 {% enddocs %}
 ```
+
+:::message
+`overview.md` はデフォルトで `docs/` ディレクトリに配置する必要があります。`dbt_project.yml` で `docs-paths: ["docs"]` が設定されていることを確認してください。
+:::
 
 ### ブロックドキュメント
 

@@ -316,28 +316,22 @@ WHERE a.order_date IS NULL
 ### テストのタグ付け
 
 ```yaml
-tests:
-  # デイリー実行
-  - name: order_id
-    tests:
-      - unique:
-          config:
-            tags: ['daily', 'critical']
+# models/marts/schema.yml
+models:
+  - name: fct_orders
+    columns:
+      - name: order_id
+        tests:
+          - unique:
+              config:
+                tags: ['daily', 'critical']
 
-  # 週次実行
-  - name: customer_segment
-    tests:
-      - accepted_values:
-          values: ['VIP', 'Regular', 'New', 'No Purchase']
-          config:
-            tags: ['weekly']
-
-  # デプロイ時のみ
-  - name: production_data
-    tests:
-      - dbt_utils.recency:
-          config:
-            tags: ['deployment']
+      - name: customer_segment
+        tests:
+          - accepted_values:
+              values: ['VIP', 'Regular', 'New', 'No Purchase']
+              config:
+                tags: ['weekly']
 ```
 
 ## 5-8. テストの失敗を調査
@@ -391,7 +385,7 @@ models:
       - name: profit_margin
         tests:
           - dbt_utils.expression_is_true:
-              expression: "BETWEEN 0 AND 1"
+              expression: "profit_margin >= 0 AND profit_margin <= 1"
               config:
                 severity: warn
 

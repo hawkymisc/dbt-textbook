@@ -109,14 +109,27 @@ jobs:
 
 ### slim-ciパターン
 
-変更されたモデルとその依存先のみをテスト：
+変更されたモデルとその依存先のみをテスト。推奨は state-based selection：
+
+```yaml
+- name: Build changed models
+  run: |
+    # 前回の実行結果（artifacts）と比較して変更されたモデルのみ実行
+    dbt build --select state:modified+ --target ci
+```
+
+:::message
+**slim-ciの注意点**: ファイル差分抽出（`git diff`）は `.sql` ファイルしか検出できず、`.yml` ファイルや `macros/` の変更を見落とす可能性があります。公式の `state:modified+` セレクションの使用を推奨します。
+:::
+
+### ファイル差分での選択（参考）
 
 ```yaml
 - name: Get changed models
   id: changed
   run: |
-    # 変更されたファイルからモデル名を抽出
-    CHANGED=$(git diff --name-only origin/main...HEAD | grep 'models/' | sed 's/models\///g' | sed 's/\.sql//g' | tr '\n' ' ')
+    # 変更されたファイルからモデル名を抽出（参考実装）
+    CHANGED=$(git diff --name-only origin/main...HEAD | grep 'models/.*\.sql$' | sed 's/models\///g' | sed 's/\.sql//g' | tr '\n' ' ')
     echo "models=$CHANGED" >> $GITHUB_OUTPUT
 
 - name: Test changed models
@@ -186,9 +199,15 @@ jobs:
 
       - name: Run Tests
         run: dbt test --target prod
+        env:
+          DBT_PROFILES_DIR: ./
+          GCP_PROJECT: ${{ secrets.GCP_PROJECT_PROD }}
 
       - name: Generate Docs
         run: dbt docs generate --target prod
+        env:
+          DBT_PROFILES_DIR: ./
+          GCP_PROJECT: ${{ secrets.GCP_PROJECT_PROD }}
 ```
 
 ### スケジュール実行
@@ -297,18 +316,23 @@ GCP_SA_KEY_PROD=-----BEGIN PRIVATE KEY-----...
 ### Blue-Greenデプロイ
 
 ```yaml
-# スキーマを切り替えてデプロイ
-- name: Deploy to Blue
-  run: dbt run --target prod_blue
+# 2つの環境を用意して切り替え
+- name: Deploy to Green
+  run: dbt run --target prod_green
 
 - name: Validate
-  run: dbt test --target prod_blue
+  run: dbt test --target prod_green
 
 - name: Switch traffic
   run: |
-    # スキーマエイリアスを切り替え
-    bq update --dataset --default_table_expiration 0 my-project:prod_green
+    # BIツールやアプリケーションの参照先をprod_greenに変更
+    # 具体的な方法は環境に依存（ビューの再作成、DNS切り替え等）
+    echo "Switch traffic from prod_blue to prod_green"
 ```
+
+:::message
+**Blue-Greenデプロイの注意**: BigQueryの `bq update --dataset` コマンドはデータセットの設定を変更するだけで、トラフィックの切り替えは自動的に行われません。BIツールやアプリケーションの参照先を明示的に変更する必要があります。
+:::
 
 ### カナリアデプロイ
 

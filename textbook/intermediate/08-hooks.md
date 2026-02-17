@@ -54,10 +54,12 @@ on-run-start:
       started_at TIMESTAMP,
       completed_at TIMESTAMP,
       status STRING
-    )
+    );
+    INSERT INTO {{ target.schema }}.run_history (run_id, command, started_at, status)
+    VALUES ('{{ invocation_id }}', '{{ flags.which }}', CURRENT_TIMESTAMP(), 'running')
 
 on-run-end:
-  - "UPDATE {{ target.schema }}.run_history SET completed_at = CURRENT_TIMESTAMP(), status = 'completed' WHERE run_id = '{{ run_id }}'"
+  - "UPDATE {{ target.schema }}.run_history SET completed_at = CURRENT_TIMESTAMP(), status = 'completed' WHERE run_id = '{{ invocation_id }}'"
 ```
 
 ## 8-3. pre-hook / post-hook
@@ -121,13 +123,18 @@ models:
     materialized='table',
     post-hook="""
         -- データが存在することを確認
-        {% set count = run_query('SELECT COUNT(*) FROM ' ~ this) %}
+        {% set result = run_query('SELECT COUNT(*) FROM ' ~ this.render()) %}
+        {% set count = result.columns[0].values[0] %}
         {% if count == 0 %}
             {{ exceptions.raise_error('No data in table!') }}
         {% endif %}
     """
 ) }}
 ```
+
+:::message
+`run_query` は `agate.Table` オブジェクトを返すため、`result.columns[0].values[0]` で値を取り出す必要があります。また、`{{ this }}` の代わりに `{{ this.render() }}` を使うと完全なテーブル参照が取得できます。
+:::
 
 ### 統計情報の更新（BigQuery）
 

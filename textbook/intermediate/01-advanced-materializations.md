@@ -84,9 +84,14 @@ where updated_at > (select max(updated_at) from {{ this }})
 ```sql
 {{ config(
     materialized='incremental',
-    unique_key='order_id'
+    unique_key='order_id',
+    incremental_strategy='merge'  -- BigQuery/Snowflakeのデフォルト
 ) }}
 ```
+
+:::message
+**重要**: `unique_key` は `incremental_strategy='merge'`（デフォルト）または `insert_overwrite` の場合のみ重複排除に有効です。`append` 戦略では重複が解消されないため注意してください。
+:::
 
 - 同じ `unique_key` のレコードが存在する場合 → **更新**
 - 存在しない場合 → **挿入**
@@ -114,21 +119,28 @@ where updated_at > (select max(updated_at) from {{ this }})
 {% endif %}
 ```
 
-### 戦略2: 一意キーベース
+### 戦略2: 一意キーベース（merge戦略と組み合わせ）
 
 ```sql
 {{ config(
     materialized='incremental',
-    unique_key='order_id'
+    unique_key='order_id',
+    incremental_strategy='merge'  -- 明示的に指定
 ) }}
 
 select * from {{ source('raw', 'orders') }}
 
--- is_incremental()チェックなし
--- unique_keyで重複を制御
+{% if is_incremental() %}
+-- ソースから増分のみ取得
+where updated_at > (select coalesce(max(updated_at), '1900-01-01') from {{ this }})
+{% endif %}
 ```
 
-### 戦略3: ハッシュベース
+:::message
+`unique_key` と `incremental_strategy='merge'` を組み合わせると、増分データ内の重複のみを制御します。ソース全体をスキャンしないよう `is_incremental()` で条件を絞ることを推奨します。
+:::
+
+### 戦略3: ハッシュベース（変更検出）
 
 ```sql
 {{ config(
@@ -137,16 +149,27 @@ select * from {{ source('raw', 'orders') }}
     on_schema_change='append_new_columns'
 ) }}
 
-select
-    order_id,
-    customer_id,
-    -- レコード全体のハッシュ
-    {{ dbt_utils.generate_surrogate_key(['order_id', 'customer_id', 'total_amount']) }} as record_hash
-from {{ source('raw', 'orders') }}
+with source as (
+    select
+        order_id,
+        customer_id,
+        total_amount,
+        -- レコード全体のハッシュ
+        {{ dbt_utils.generate_surrogate_key(['order_id', 'customer_id', 'total_amount']) }} as record_hash
+    from {{ source('raw', 'orders') }}
+),
 
+existing as (
+    select order_id, record_hash
+    from {{ this }}
+)
+
+select s.*
+from source s
 {% if is_incremental() %}
-where {{ dbt_utils.generate_surrogate_key(['order_id', 'customer_id', 'total_amount']) }}
-      != (select record_hash from {{ this }} where {{ this }}.order_id = orders.order_id)
+left join existing e on s.order_id = e.order_id
+where e.order_id is null  -- 新規レコード
+   or s.record_hash != e.record_hash  -- 変更あり
 {% endif %}
 ```
 
