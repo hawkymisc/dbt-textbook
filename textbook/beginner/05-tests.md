@@ -112,13 +112,10 @@ sources:
 
 **実行されるSQL**:
 ```sql
-SELECT count(*) as failures
-FROM (
-    SELECT order_id, count(*) as n_records
-    FROM `project.dataset.fct_orders`
-    GROUP BY order_id
-    HAVING count(*) > 1
-) validation_errors
+SELECT count(*) FROM (
+    SELECT order_id, count(*) FROM fct_orders
+    GROUP BY order_id HAVING count(*) > 1
+)
 ```
 
 ### not_null（非NULL）
@@ -133,9 +130,7 @@ FROM (
 
 **実行されるSQL**:
 ```sql
-SELECT count(*) as failures
-FROM `project.dataset.fct_orders`
-WHERE customer_id IS NULL
+SELECT count(*) FROM fct_orders WHERE customer_id IS NULL
 ```
 
 ### accepted_values（許容値）
@@ -168,12 +163,20 @@ WHERE customer_id IS NULL
 
 **検証内容**: 値が参照先テーブルに存在することを確認（外部キー制約相当）
 
+**複合キーの例**:
+```yaml
+tests:
+  - relationships:
+      to: ref('dim_products')
+      field: product_id
+      config:
+        where: "1=1"  # 条件付きテスト
+```
+
 **実行されるSQL**:
 ```sql
-SELECT count(*) as failures
-FROM `project.dataset.fct_orders` as a
-LEFT JOIN `project.dataset.dim_customers` as b
-ON a.customer_id = b.customer_id
+SELECT count(*) FROM fct_orders a
+LEFT JOIN dim_customers b ON a.customer_id = b.customer_id
 WHERE a.customer_id IS NOT NULL AND b.customer_id IS NULL
 ```
 
@@ -433,7 +436,26 @@ dbt ls --resource-type model | wc -l
 
 ## 5-12. よくあるテストパターン
 
-### 日付の妥当性
+### dbt_utilsパッケージの活用
+
+以下のテストを使用するには、`dbt_utils` パッケージのインストールが必要です：
+
+```yaml
+# packages.yml
+packages:
+  - package: dbt-labs/dbt_utils
+    version: [">=1.0.0", "<2.0.0"]
+```
+
+```bash
+dbt deps  # パッケージをインストール
+```
+
+:::message
+パッケージの詳細は中級編第3章「パッケージの活用」で解説します。
+:::
+
+#### 日付の妥当性
 
 ```yaml
 - name: order_date
@@ -442,7 +464,7 @@ dbt ls --resource-type model | wc -l
         expression: "<= current_date()"
 ```
 
-### 正の値
+#### 正の値
 
 ```yaml
 - name: total_amount
@@ -451,17 +473,13 @@ dbt ls --resource-type model | wc -l
         expression: ">= 0"
 ```
 
-### 一致確認
+#### 一致確認
 
 ```yaml
 tests:
   - dbt_utils.equality:
       compare_model: ref('expected_results')
 ```
-
-:::message
-`dbt_utils` パッケージのテストは中級編で解説します。
-:::
 
 ## まとめ
 

@@ -79,15 +79,10 @@ renamed as (
     select
         order_id,
         customer_id,
-        -- ステータスはそのまま
         order_status,
-        -- 支払い方法の命名統一
         payment_method,
-        -- 住所
         shipping_address,
-        -- 金額
         total_amount,
-        -- 日時の処理
         created_at,
         updated_at
     from source
@@ -96,7 +91,6 @@ renamed as (
 final as (
     select
         *,
-        -- よく使う派生カラムはここで追加
         date(created_at) as order_date,
         date_trunc('month', created_at) as order_month
     from renamed
@@ -253,7 +247,7 @@ final as (
         customer_id,
         customer_name,
         order_status,
-        -- 日本語表示
+        -- ビジネスユーザー向けに日本語表示を追加
         case order_status
             when 'completed' then '完了'
             when 'shipped' then '発送済み'
@@ -423,7 +417,12 @@ models/
     └── dim_customers.sql
 ```
 
-ただし、プロジェクトが成長したらすぐにIntermediate層を追加することをお勧めします。
+:::message
+**小規模構成のリスク**
+- Marts層のSQLが複雑になりやすい
+- 再利用可能なコンポーネントが作りにくい
+- プロジェクトが成長したら、すぐにIntermediate層を追加することをお勧めします
+:::
 
 ## 4-8. 大規模プロジェクトでの対応
 
@@ -452,6 +451,13 @@ models/
     └── marketing/
         └── fct_campaigns.sql
 ```
+
+:::message
+**大規模構成のリスク**
+- ディレクトリ構造が複雑になり、理解に時間がかかる
+- ドメイン間の依存関係の管理が必要
+- 最初は3層構造で始め、必要に応じて分割することをお勧めします
+:::
 
 ## 4-9. 実践：サンプルプロジェクトの確認
 

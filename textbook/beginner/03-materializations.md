@@ -171,10 +171,15 @@ models:
 SELECT * FROM {{ ref('stg_orders') }}
 ```
 
-### 方法3: schema.yml
+### 方法3: schema.yml（非推奨）
+
+:::message alert
+**dbt v1.6以降、schema.ymlでのconfig設定は非推奨になりました。**
+代わりに `dbt_project.yml` またはモデルファイル内で設定してください。
+:::
 
 ```yaml
-# models/marts/schema.yml
+# models/marts/schema.yml（非推奨）
 version: 2
 
 models:
@@ -189,17 +194,24 @@ models:
 
 ```
 1. そのモデルを直接クエリするか？
-   └─ No → ephemeral
+   └─ No → ephemeral（CTEとして展開）
    └─ Yes → 次へ
 
 2. データ量は大きいか？（数百万行以上）
-   └─ Yes → incremental（または table）
+   └─ Yes → incremental（増分更新で高速化）
    └─ No → 次へ
 
 3. 頻繁にクエリされるか？
-   └─ Yes → table
-   └─ No → view
+   └─ Yes → table（物理テーブルで高速化）
+   └─ No → view（ストレージ節約）
 ```
+
+| クエリ | データ量 | 頻繁さ | 推奨 |
+|-------|---------|--------|------|
+| No | - | - | ephemeral |
+| Yes | 大 | - | incremental |
+| Yes | 小 | 高 | table |
+| Yes | 小 | 低 | view |
 
 ### レイヤー別の推奨設定
 
@@ -282,6 +294,14 @@ DuckDBはシンプルな設定で動作します：
     unique_key='order_id'
 ) }}
 ```
+
+:::message
+**DuckDBの制限事項**
+- パーティション、クラスタリングは未対応
+- materialized viewは未対応
+- インクリメンタルの高度なオプションは一部未対応
+- 学習用途では基本的な `view`, `table`, `incremental`, `ephemeral` で十分です
+:::
 
 ## 3-8. 実践例：サンプルプロジェクト
 
